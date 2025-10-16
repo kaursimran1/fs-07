@@ -1,0 +1,199 @@
+const express = require("express");
+const cors = require("cors");
+const app = express();
+
+app.use(cors());
+
+// Mock products
+const products = [
+  { id: 1, name: "Laptop", price: 1200 },
+  { id: 2, name: "Mouse", price: 25 },
+  { id: 3, name: "Keyboard", price: 45 },
+];
+
+// GET endpoint
+app.get("/api/products", (req, res) => {
+  res.json(products);
+});
+
+const PORT = 5000;
+app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
+npx create-react-app frontend
+cd frontend
+npm install axios @reduxjs/toolkit react-redux
+import { createSlice } from "@reduxjs/toolkit";
+
+const cartSlice = createSlice({
+  name: "cart",
+  initialState: {
+    items: [],
+  },
+  reducers: {
+    addToCart: (state, action) => {
+      const item = action.payload;
+      const existing = state.items.find((i) => i.id === item.id);
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        state.items.push({ ...item, quantity: 1 });
+      }
+    },
+    removeFromCart: (state, action) => {
+      const id = action.payload;
+      state.items = state.items.filter((item) => item.id !== id);
+    },
+    updateQuantity: (state, action) => {
+      const { id, quantity } = action.payload;
+      const existing = state.items.find((i) => i.id === id);
+      if (existing) existing.quantity = quantity;
+    },
+  },
+});
+
+export const { addToCart, removeFromCart, updateQuantity } = cartSlice.actions;
+export default cartSlice.reducer;
+import { configureStore } from "@reduxjs/toolkit";
+import cartReducer from "./cartSlice";
+
+export const store = configureStore({
+  reducer: {
+    cart: cartReducer,
+  },
+});
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { useDispatch } from "react-redux";
+import { addToCart } from "../redux/cartSlice";
+
+const ProductList = () => {
+  const [products, setProducts] = useState([]);
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    axios.get("http://localhost:5000/api/products")
+      .then((res) => setProducts(res.data))
+      .catch(() => console.error("Error fetching products"));
+  }, []);
+
+  return (
+    <div>
+      <h2>Products</h2>
+      <div style={styles.container}>
+        {products.map((p) => (
+          <div key={p.id} style={styles.card}>
+            <h3>{p.name}</h3>
+            <p>${p.price}</p>
+            <button onClick={() => dispatch(addToCart(p))}>Add to Cart</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const styles = {
+  container: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "20px",
+    margin: "20px",
+  },
+  card: {
+    border: "1px solid #ccc",
+    borderRadius: "10px",
+    padding: "15px",
+    textAlign: "center",
+    width: "150px",
+  },
+};
+
+export default ProductList;
+import React from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { removeFromCart, updateQuantity } from "../redux/cartSlice";
+
+const Cart = () => {
+  const cartItems = useSelector((state) => state.cart.items);
+  const dispatch = useDispatch();
+
+  return (
+    <div>
+      <h2>Shopping Cart</h2>
+      {cartItems.length === 0 && <p>No items in cart.</p>}
+      {cartItems.map((item) => (
+        <div key={item.id} style={styles.item}>
+          <span>{item.name} (${item.price})</span>
+          <input
+            type="number"
+            value={item.quantity}
+            min="1"
+            style={styles.input}
+            onChange={(e) =>
+              dispatch(updateQuantity({ id: item.id, quantity: Number(e.target.value) }))
+            }
+          />
+          <button onClick={() => dispatch(removeFromCart(item.id))}>Remove</button>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const styles = {
+  item: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "10px",
+    margin: "5px 0",
+  },
+  input: {
+    width: "50px",
+    textAlign: "center",
+  },
+};
+
+export default Cart;
+import React from "react";
+import ProductList from "./components/ProductList";
+import Cart from "./components/Cart";
+import "./App.css";
+
+function App() {
+  return (
+    <div className="App">
+      <h1>My Shop</h1>
+      <ProductList />
+      <Cart />
+    </div>
+  );
+}
+
+export default App;
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+import { Provider } from "react-redux";
+import { store } from "./redux/store";
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(
+  <Provider store={store}>
+    <App />
+  </Provider>
+);
+.App {
+  text-align: center;
+  margin: 20px;
+  font-family: Arial, sans-serif;
+}
+
+button {
+  padding: 5px 10px;
+  margin-top: 5px;
+  cursor: pointer;
+}
+
+input {
+  padding: 3px;
+}
